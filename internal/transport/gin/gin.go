@@ -4,13 +4,14 @@ import (
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/adYushinW/TestTask/internal/app"
 	"github.com/gin-gonic/gin"
 )
 
-var count int64
+var count uint64
 
 func Service(app *app.App) error {
 	mux := sync.RWMutex{}
@@ -19,10 +20,7 @@ func Service(app *app.App) error {
 		t := time.NewTicker(time.Minute)
 
 		for range t.C {
-			mux.Lock()
-			count = 0
-			mux.Unlock()
-
+			atomic.StoreUint64(&count, 0)
 			t.Reset(time.Minute)
 		}
 	}()
@@ -33,12 +31,12 @@ func Service(app *app.App) error {
 		mux.RLock()
 		defer mux.RUnlock()
 
-		if count > 600 {
+		if count > 2 {
 			c.JSON(http.StatusTooManyRequests, "Too Many Requests")
 			return
 		}
 
-		count++
+		atomic.AddUint64(&count, 1)
 	})
 
 	r.GET("/ping", func(c *gin.Context) {
