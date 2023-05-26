@@ -17,9 +17,8 @@ type ConfigDatabase struct {
 }
 
 func (cdb ConfigDatabase) String() string {
-	return fmt.Sprintf(
-		`host=%s port=%s user=%s password=%s database=%s sslmode=%s`,
-		cdb.Host, cdb.Port, cdb.User, cdb.Password, cdb.Database, cdb.SSLmode,
+	return fmt.Sprintf("postgres://%v:%v@%v:%v/%v?sslmode=%v",
+		cdb.User, cdb.Password, cdb.Host, cdb.Port, cdb.Database, cdb.SSLmode,
 	)
 }
 

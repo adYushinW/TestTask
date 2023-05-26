@@ -26,3 +26,7 @@ func (a *App) AddCat(name string, color string, tail_length uint8, whiskers_leng
 func (a *App) CatColor() ([]*model.Cat_colors_info, error) {
 	return a.db.CatColor()
 }
+
+func (a *App) CatsInfo() ([]*model.Cats_stat, error) {
+	return a.db.CatsInfo()
+}

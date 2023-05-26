@@ -1,7 +1,6 @@
 package gin
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -51,7 +50,6 @@ func Service(app *app.App) error {
 			return
 		}
 		tl8 := uint8(tail_length)
-		fmt.Println(tl8)
 
 		whiskers_length, err := strconv.ParseUint(c.Query("whiskers_length"), 10, 8)
 		if err != nil {
@@ -59,7 +57,6 @@ func Service(app *app.App) error {
 			return
 		}
 		wl8 := uint8(whiskers_length)
-		fmt.Println(wl8)
 
 		newCat, err := app.AddCat(name, color, tl8, wl8)
 		if err != nil {
@@ -67,6 +64,16 @@ func Service(app *app.App) error {
 			return
 		}
 		c.JSON(http.StatusOK, newCat)
+	})
+
+	r.GET("/cats_stat", func(c *gin.Context) {
+
+		catsInfo, err := app.CatsInfo()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, "Bad Request")
+			return
+		}
+		c.JSON(http.StatusOK, catsInfo)
 	})
 
 	return r.Run(":8080")
