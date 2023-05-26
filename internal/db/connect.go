@@ -1,9 +1,10 @@
 package db
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v4"
 	_ "github.com/lib/pq"
 )
 
@@ -22,24 +23,27 @@ func (cdb ConfigDatabase) String() string {
 	)
 }
 
-func constDB() ConfigDatabase {
-	return ConfigDatabase{
-		Host:     "172.21.0.2",
-		Port:     "5432",
-		User:     "postgres",
-		Password: "postgres",
-		Database: "postgres",
-		SSLmode:  "disable",
-	}
-}
+// func constDB() ConfigDatabase {
+// 	return ConfigDatabase{
+// 		Host:     "127.0.0.1",
+// 		Port:     "5432",
+// 		User:     "postgres",
+// 		Password: "postgres",
+// 		Database: "cats",
+// 		SSLmode:  "disable",
+// 	}
+// }
 
-func newConnect() (*sql.DB, error) {
-	db, err := sql.Open("postgres", constDB().String())
+func newConnect() (*pgx.Conn, error) {
+	ctx := context.Background()
+
+	url := "postgres://postgres:postgres@localhost:5432/cats?sslmode=disable"
+	db, err := pgx.Connect(ctx, url)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(constDB().String())
-	if err := db.Ping(); err != nil {
+
+	if err := db.Ping(ctx); err != nil {
 		fmt.Println("Пинг не прошёл")
 		return nil, err
 	}

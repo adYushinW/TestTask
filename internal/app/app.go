@@ -15,7 +15,7 @@ func New(db db.Database) *App {
 	}
 }
 
-func (a *App) GetCats(attribute string, order string, limit string, offset string) ([]*model.Cats, error) {
+func (a *App) GetCats(attribute string, order string, limit uint64, offset uint64) ([]*model.Cats, error) {
 	return a.db.GetCats(attribute, order, limit, offset)
 }
 

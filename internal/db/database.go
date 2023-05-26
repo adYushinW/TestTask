@@ -1,21 +1,23 @@
 package db
 
 import (
-	"database/sql"
-	"fmt"
+	"context"
+	"strings"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/adYushinW/TestTask/internal/model"
+	"github.com/jackc/pgx/v4"
 )
 
 type Database interface {
-	GetCats(attribute string, order string, limit string, offset string) ([]*model.Cats, error)
+	GetCats(attribute string, order string, limit uint64, offset uint64) ([]*model.Cats, error)
 	AddCat(name string, color string, tail_length uint8, whiskers_length uint8) ([]*model.Cats, error)
 	CatColor() ([]*model.Cat_colors_info, error)
 	CatsInfo() ([]*model.Cats_stat, error)
 }
 
 type database struct {
-	conn *sql.DB
+	conn *pgx.Conn
 }
 
 func New() (Database, error) {
@@ -29,27 +31,33 @@ func New() (Database, error) {
 	}, nil
 }
 
-func (db *database) GetCats(attribute string, order string, limit string, offset string) ([]*model.Cats, error) {
-	query := "SELECT name, color, tail_length, whiskers_length FROM cats"
+func (db *database) GetCats(attribute string, order string, limit uint64, offset uint64) ([]*model.Cats, error) {
+	qb := sq.Select("name", "color", "tail_length", "whiskers_length").
+		From("cats").
+		PlaceholderFormat(sq.Dollar)
 
 	if attribute != "" {
-		query = fmt.Sprintf("%s ORDER BY %s", query, attribute)
+		if strings.ToLower(order) == "desc" {
+			qb = qb.OrderByClause("? DESC", attribute)
+		} else {
+			qb = qb.OrderByClause("?", attribute)
+		}
 	}
 
-	if order != "" {
-		query = fmt.Sprintf("%s %s", query, order)
+	if limit > 0 {
+		qb = qb.Limit(limit)
 	}
 
-	if limit != "" {
-		query = fmt.Sprintf("%s LIMIT %s", query, limit)
+	if offset > 0 {
+		qb = qb.Offset(offset)
 	}
 
-	if offset != "" {
-		query = fmt.Sprintf("%s OFFSET %s", query, offset)
+	sql, args, err := qb.ToSql()
+	if err != nil {
+		return nil, err
 	}
 
-	rows, err := db.conn.Query(query)
-
+	rows, err := db.conn.Query(context.Background(), sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +87,7 @@ func (db *database) AddCat(name string, color string, tail_length uint8, whisker
 
 	query := "INSERT INTO cats (name, color, tail_length, whiskers_length) VALUES ($1, $2, $3, $4) RETURNING name, color, tail_length, whiskers_length"
 
-	row := db.conn.QueryRow(query, name, color, tail_length, whiskers_length)
+	row := db.conn.QueryRow(context.Background(), query, name, color, tail_length, whiskers_length)
 
 	result := make([]*model.Cats, 0)
 
@@ -99,7 +107,7 @@ func (db *database) AddCat(name string, color string, tail_length uint8, whisker
 func (db *database) CatColor() ([]*model.Cat_colors_info, error) {
 	query := "SELECT color, Count(color) FROM cats GROUP BY color "
 
-	rows, err := db.conn.Query(query)
+	rows, err := db.conn.Query(context.Background(), query)
 
 	if err != nil {
 		return nil, err
@@ -116,7 +124,7 @@ func (db *database) CatColor() ([]*model.Cat_colors_info, error) {
 			continue
 		}
 
-		row := db.conn.QueryRow(query, &cats.Color, &cats.Count)
+		row := db.conn.QueryRow(context.Background(), query, &cats.Color, &cats.Count)
 
 		cat := new(model.Cat_colors_info)
 		if err := row.Scan(&cat.Color, &cat.Count); err != nil {
@@ -143,7 +151,7 @@ func (db *database) CatsInfo() ([]*model.Cats_stat, error) {
 				MODE() WITHIN GROUP (ORDER BY whiskers_length) AS whiskers_length_mode 
 				FROM cats`
 
-	row := db.conn.QueryRow(query)
+	row := db.conn.QueryRow(context.Background(), query)
 
 	result := make([]*model.Cats_stat, 0)
 
@@ -165,7 +173,7 @@ func (db *database) CatsInfo() ([]*model.Cats_stat, error) {
 	cats.Tail_length_mode = "{" + cats.Tail_length_mode + "}"
 	cats.Whiskers_length_mode = "{" + cats.Whiskers_length_mode + "}"
 
-	row = db.conn.QueryRow(query, &cats.Tail_length_mean, &cats.Tail_length_median, &cats.Tail_length_mode,
+	row = db.conn.QueryRow(context.Background(), query, &cats.Tail_length_mean, &cats.Tail_length_median, &cats.Tail_length_mode,
 		&cats.Whiskers_length_mean, &cats.Whiskers_length_median, &cats.Whiskers_length_mode)
 
 	cat := new(model.Cats_stat)

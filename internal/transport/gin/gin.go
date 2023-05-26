@@ -3,16 +3,50 @@ package gin
 import (
 	"net/http"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/adYushinW/TestTask/internal/app"
 	"github.com/gin-gonic/gin"
 )
 
+var count int64
+
 func Service(app *app.App) error {
+	mux := sync.RWMutex{}
+
+	go func() {
+		t := time.NewTicker(time.Minute)
+
+		for range t.C {
+			mux.Lock()
+			count = 0
+			mux.Unlock()
+
+			t.Reset(time.Minute)
+		}
+	}()
+
 	r := gin.Default()
+
+	r.Use(func(c *gin.Context) {
+		mux.RLock()
+		defer mux.RUnlock()
+
+		if count > 600 {
+			c.JSON(http.StatusTooManyRequests, "Too Many Requests")
+			return
+		}
+
+		count++
+	})
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, "Cats Service. Version 0.1")
+	})
+
+	r.GET("/count", func(c *gin.Context) {
+		c.JSON(http.StatusOK, count)
 	})
 
 	r.GET("/cat_color", func(c *gin.Context) {
@@ -25,13 +59,31 @@ func Service(app *app.App) error {
 	})
 
 	r.GET("/cats", func(c *gin.Context) {
+		var err error
+		var l, o uint64
 
 		attribute := c.Query("attribute")
 		order := c.Query("order")
 		limit := c.Query("limit")
 		offset := c.Query("offset")
 
-		catsInfo, err := app.GetCats(attribute, order, limit, offset)
+		if limit != "" {
+			l, err = strconv.ParseUint(limit, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, "Bad Request")
+				return
+			}
+		}
+
+		if limit != "" {
+			o, err = strconv.ParseUint(offset, 10, 64)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, "Bad Request")
+				return
+			}
+		}
+
+		catsInfo, err := app.GetCats(attribute, order, l, o)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, "Bad Request")
 			return
