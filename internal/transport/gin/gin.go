@@ -3,7 +3,6 @@ package gin
 import (
 	"net/http"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -14,8 +13,6 @@ import (
 var count uint64
 
 func Service(app *app.App) error {
-	mux := sync.RWMutex{}
-
 	go func() {
 		t := time.NewTicker(time.Minute)
 
@@ -28,9 +25,6 @@ func Service(app *app.App) error {
 	r := gin.Default()
 
 	r.Use(func(c *gin.Context) {
-		mux.RLock()
-		defer mux.RUnlock()
-
 		if count > 2 {
 			c.JSON(http.StatusTooManyRequests, "Too Many Requests")
 			return
