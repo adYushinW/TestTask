@@ -105,29 +105,29 @@ func (db *database) AddCat(name string, color string, tail_length uint8, whisker
 }
 
 func (db *database) CatColor() ([]*model.Cat_colors_info, error) {
-	query := "SELECT color, Count(color) FROM cats GROUP BY color "
+	sb := sq.Select("color", "COUNT(1)").From("cats").GroupBy("color")
 
-	rows, err := db.conn.Query(context.Background(), query)
+	ib := sq.Insert("cat_colors_info").
+		Columns("color", "count").
+		Select(sb).
+		Suffix("ON CONFLICT (color) DO UPDATE SET count = EXCLUDED.count ").
+		Suffix("RETURNING color, count")
 
+	sql, args, err := ib.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.conn.Query(context.TODO(), sql, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	result := make([]*model.Cat_colors_info, 0)
-
-	query = "INSERT INTO cat_colors_info (color, count) VALUES ($1, $2) RETURNING color, count"
-
 	for rows.Next() {
-		cats := new(model.Cat_colors_info)
-		if err := rows.Scan(&cats.Color, &cats.Count); err != nil {
-			continue
-		}
-
-		row := db.conn.QueryRow(context.Background(), query, &cats.Color, &cats.Count)
-
 		cat := new(model.Cat_colors_info)
-		if err := row.Scan(&cat.Color, &cat.Count); err != nil {
+		if err := rows.Scan(&cat.Color, &cat.Count); err != nil {
 			continue
 		}
 
@@ -135,7 +135,7 @@ func (db *database) CatColor() ([]*model.Cat_colors_info, error) {
 	}
 
 	if err := rows.Err(); err != nil {
-		return result, err
+		return nil, err
 	}
 
 	return result, nil
