@@ -1,9 +1,10 @@
 package db
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
+	"github.com/jackc/pgx/v4"
 	_ "github.com/lib/pq"
 )
 
@@ -33,13 +34,14 @@ func constDB() ConfigDatabase {
 	}
 }
 
-func newConnect() (*sql.DB, error) {
-	db, err := sql.Open("postgres", constDB().String())
+func newConnect() (*pgx.Conn, error) {
+	ctx := context.Background()
+	db, err := pgx.Connect(ctx, constDB().String())
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(constDB().String())
-	if err := db.Ping(); err != nil {
+
+	if err := db.Ping(ctx); err != nil {
 		fmt.Println("Пинг не прошёл")
 		return nil, err
 	}

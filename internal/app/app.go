@@ -15,11 +15,11 @@ func New(db db.Database) *App {
 	}
 }
 
-func (a *App) GetCats(attribute string, order string, limit string, offset string) ([]*model.Cats, error) {
+func (a *App) GetCats(attribute string, order string, limit uint64, offset uint64) ([]*model.Cats, error) {
 	return a.db.GetCats(attribute, order, limit, offset)
 }
 
-func (a *App) AddCat(name string, color string, tail_length uint8, whiskers_length uint8) ([]*model.Cats, error) {
+func (a *App) AddCat(name string, color string, tail_length uint64, whiskers_length uint64) ([]*model.Cats, error) {
 	return a.db.AddCat(name, color, tail_length, whiskers_length)
 }
 
